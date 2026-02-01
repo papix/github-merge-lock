@@ -1,0 +1,48 @@
+{
+  "name": "@papix/github-merge-lock-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "CLI tool for github-merge-lock",
+  "license": "MIT",
+  "author": "papix",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/papix/github-merge-lock.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/papix/github-merge-lock/tree/main/packages/cli",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "github",
+    "branch",
+    "protection",
+    "lock",
+    "merge",
+    "cli"
+  ],
+  "bin": {
+    "github-merge-lock": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "dotenv": "^16.5.0"
+  }
+}

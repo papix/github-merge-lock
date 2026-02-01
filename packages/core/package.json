@@ -1,0 +1,43 @@
+{
+  "name": "@papix/github-merge-lock-core",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Core library for github-merge-lock",
+  "license": "MIT",
+  "author": "papix",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/papix/github-merge-lock.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/papix/github-merge-lock/tree/main/packages/core",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "github",
+    "branch",
+    "protection",
+    "lock",
+    "merge",
+    "ruleset"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup"
+  }
+}
