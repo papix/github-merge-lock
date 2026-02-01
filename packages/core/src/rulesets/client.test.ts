@@ -9,12 +9,7 @@ type ResponseConfig = {
   contentType?: string
 }
 
-const buildResponse = ({
-  body,
-  ok = true,
-  status = 200,
-  contentType = 'application/json',
-}: ResponseConfig) => ({
+const buildResponse = ({ body, ok = true, status = 200, contentType = 'application/json' }: ResponseConfig) => ({
   ok,
   status,
   headers: {

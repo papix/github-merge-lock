@@ -29,7 +29,9 @@ describe('github-merge-lock-unlock action', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv }
-    rulesetMocks.resolveRulesetName.mockImplementation((branch: string, name?: string) => name ?? `github-merge-lock:${branch}`)
+    rulesetMocks.resolveRulesetName.mockImplementation(
+      (branch: string, name?: string) => name ?? `github-merge-lock:${branch}`,
+    )
   })
 
   afterEach(() => {
@@ -82,9 +84,7 @@ describe('github-merge-lock-unlock action', () => {
 
     expect(coreMocks.setOutput).toHaveBeenCalledWith('changed', 'false')
     expect(coreMocks.setOutput).toHaveBeenCalledWith('ruleset_name', 'custom')
-    expect(coreMocks.info).toHaveBeenCalledWith(
-      'Branch "main" is already unlocked in owner/repo (ruleset: custom)',
-    )
+    expect(coreMocks.info).toHaveBeenCalledWith('Branch "main" is already unlocked in owner/repo (ruleset: custom)')
   })
 
   it('uses repository from environment when inputs are empty', async () => {

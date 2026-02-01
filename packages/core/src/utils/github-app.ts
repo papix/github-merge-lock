@@ -1,5 +1,5 @@
-import fs from 'node:fs'
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 
 const DEFAULT_API_BASE_URL = 'https://api.github.com'
 const API_VERSION = '2022-11-28'

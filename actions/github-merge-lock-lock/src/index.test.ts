@@ -29,7 +29,9 @@ describe('github-merge-lock-lock action', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv }
-    rulesetMocks.resolveRulesetName.mockImplementation((branch: string, name?: string) => name ?? `github-merge-lock:${branch}`)
+    rulesetMocks.resolveRulesetName.mockImplementation(
+      (branch: string, name?: string) => name ?? `github-merge-lock:${branch}`,
+    )
   })
 
   afterEach(() => {
@@ -63,9 +65,7 @@ describe('github-merge-lock-lock action', () => {
     })
     expect(coreMocks.setOutput).toHaveBeenCalledWith('changed', 'true')
     expect(coreMocks.setOutput).toHaveBeenCalledWith('ruleset_name', 'github-merge-lock:main')
-    expect(coreMocks.info).toHaveBeenCalledWith(
-      'Locked branch "main" in owner/repo (ruleset: github-merge-lock:main)',
-    )
+    expect(coreMocks.info).toHaveBeenCalledWith('Locked branch "main" in owner/repo (ruleset: github-merge-lock:main)')
   })
 
   it('logs when already locked', async () => {
@@ -82,9 +82,7 @@ describe('github-merge-lock-lock action', () => {
 
     expect(coreMocks.setOutput).toHaveBeenCalledWith('changed', 'false')
     expect(coreMocks.setOutput).toHaveBeenCalledWith('ruleset_name', 'custom')
-    expect(coreMocks.info).toHaveBeenCalledWith(
-      'Branch "main" is already locked in owner/repo (ruleset: custom)',
-    )
+    expect(coreMocks.info).toHaveBeenCalledWith('Branch "main" is already locked in owner/repo (ruleset: custom)')
   })
 
   it('uses repository from environment when inputs are empty', async () => {
