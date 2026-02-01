@@ -1,7 +1,7 @@
 import type { LockOptions, RulesetEnforcement, RulesetStatusResult, RulesetSummary } from '../types/index.js'
 import { getGitHubToken } from '../utils/config.js'
-import { ensureGitHubToken } from '../utils/github-app.js'
 import { RepositoryNotFoundError } from '../utils/errors.js'
+import { ensureGitHubToken } from '../utils/github-app.js'
 
 export type RulesetOptions = LockOptions & {
   rulesetName?: string
@@ -32,6 +32,21 @@ function buildRefName(branch: string): string {
 
 function isActiveEnforcement(enforcement?: RulesetEnforcement): boolean {
   return enforcement ? ACTIVE_ENFORCEMENTS.has(enforcement) : false
+}
+
+function buildErrorMessage(data: unknown, status: number): string {
+  if (typeof data === 'string') {
+    return `GitHub API Error (${status}): ${data}`
+  }
+  const payload = data as { message?: string; errors?: unknown; documentation_url?: string }
+  let message = payload.message ?? safeStringify(payload)
+  if (payload.errors) {
+    message += ` (errors: ${safeStringify(payload.errors)})`
+  }
+  if (payload.documentation_url) {
+    message += ` (docs: ${payload.documentation_url})`
+  }
+  return `GitHub API Error (${status}): ${message}`
 }
 
 async function requestGitHub<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -65,18 +80,7 @@ async function requestGitHub<T>(path: string, options: RequestOptions = {}): Pro
     if (response.status === 404 && options.owner && options.repo) {
       throw new RepositoryNotFoundError(options.owner, options.repo)
     }
-    if (typeof data === 'string') {
-      throw new Error(`GitHub API Error (${response.status}): ${data}`)
-    }
-    const payload = data as { message?: string; errors?: unknown; documentation_url?: string }
-    let message = payload.message ?? safeStringify(payload)
-    if (payload.errors) {
-      message += ` (errors: ${safeStringify(payload.errors)})`
-    }
-    if (payload.documentation_url) {
-      message += ` (docs: ${payload.documentation_url})`
-    }
-    throw new Error(`GitHub API Error (${response.status}): ${message}`)
+    throw new Error(buildErrorMessage(data, response.status))
   }
 
   return data as T
