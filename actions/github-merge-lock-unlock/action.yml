@@ -1,0 +1,46 @@
+name: 'GitHub Merge Lock (Unlock)'
+description: 'Unlock a branch via repository rulesets'
+author: 'papix'
+
+inputs:
+  github_token:
+    description: 'GitHub token with repository administration permissions'
+    required: true
+  owner:
+    description: 'Repository owner (defaults to current repository owner)'
+    required: false
+    default: ''
+  repo:
+    description: 'Repository name (defaults to current repository name)'
+    required: false
+    default: ''
+  branch:
+    description: 'Branch name to unlock'
+    required: true
+  ruleset_name:
+    description: 'Ruleset name (default: github-merge-lock:<branch>)'
+    required: false
+    default: ''
+
+outputs:
+  changed:
+    description: 'Whether the unlock operation changed state'
+    value: ${{ steps.unlock.outputs.changed }}
+  ruleset_name:
+    description: 'Resolved ruleset name'
+    value: ${{ steps.unlock.outputs.ruleset_name }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Unlock branch
+      id: unlock
+      shell: bash
+      working-directory: ${{ github.action_path }}/../..
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_OWNER: ${{ inputs.owner }}
+        INPUT_REPO: ${{ inputs.repo }}
+        INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_RULESET_NAME: ${{ inputs.ruleset_name }}
+      run: pnpm exec tsx ${{ github.action_path }}/src/index.ts

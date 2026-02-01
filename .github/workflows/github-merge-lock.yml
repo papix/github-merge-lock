@@ -1,0 +1,218 @@
+name: Merge Lock
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: 'lock | unlock | status'
+        required: true
+        type: string
+      branch:
+        description: 'Target branch'
+        required: true
+        type: string
+      owner:
+        description: 'Repository owner (default: caller repo owner)'
+        required: false
+        type: string
+        default: ''
+      repo:
+        description: 'Repository name (default: caller repo name)'
+        required: false
+        type: string
+        default: ''
+      ruleset_name:
+        description: 'Ruleset name (default: github-merge-lock:<branch>)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      token:
+        description: 'GitHub token with repository administration permissions'
+        required: false
+      app_id:
+        description: 'GitHub App id'
+        required: false
+      app_private_key:
+        description: 'GitHub App private key (PEM)'
+        required: false
+    outputs:
+      changed:
+        description: 'Whether the lock/unlock operation changed state'
+        value: ${{ jobs.merge-lock.outputs.changed }}
+      locked:
+        description: 'Lock status (status command)'
+        value: ${{ jobs.merge-lock.outputs.locked }}
+      ruleset_id:
+        description: 'Ruleset ID (status command)'
+        value: ${{ jobs.merge-lock.outputs.ruleset_id }}
+      enforcement:
+        description: 'Ruleset enforcement (status command)'
+        value: ${{ jobs.merge-lock.outputs.enforcement }}
+      found:
+        description: 'Whether the ruleset exists (status command)'
+        value: ${{ jobs.merge-lock.outputs.found }}
+      ruleset_name:
+        description: 'Resolved ruleset name'
+        value: ${{ jobs.merge-lock.outputs.ruleset_name }}
+
+permissions: {}
+
+concurrency:
+  group: github-merge-lock-${{ github.repository }}-${{ inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  merge-lock:
+    name: Merge Lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.result.outputs.changed }}
+      locked: ${{ steps.result.outputs.locked }}
+      ruleset_id: ${{ steps.result.outputs.ruleset_id }}
+      enforcement: ${{ steps.result.outputs.enforcement }}
+      found: ${{ steps.result.outputs.found }}
+      ruleset_name: ${{ steps.result.outputs.ruleset_name }}
+    permissions:
+      contents: read
+    steps:
+      - name: Validate inputs
+        id: auth
+        shell: bash
+        env:
+          COMMAND: ${{ inputs.command }}
+          HAS_TOKEN: ${{ secrets.token != '' }}
+          HAS_APP: ${{ secrets.app_id != '' && secrets.app_private_key != '' }}
+        run: |
+          case "$COMMAND" in
+            lock|unlock|status) ;;
+            *)
+              echo "Invalid command: $COMMAND" >&2
+              exit 1
+              ;;
+          esac
+
+          if [ "$HAS_TOKEN" != "true" ] && [ "$HAS_APP" != "true" ]; then
+            echo "Either secrets.token or secrets.app_id/app_private_key is required." >&2
+            exit 1
+          fi
+
+          if [ "$HAS_TOKEN" == "true" ]; then
+            echo "auth_method=token" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_APP" == "true" ]; then
+            echo "auth_method=app" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub App token
+        if: ${{ steps.auth.outputs.auth_method == 'app' }}
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.app_id }}
+          private-key: ${{ secrets.app_private_key }}
+          owner: ${{ inputs.owner || github.repository_owner }}
+
+      - name: Resolve token
+        id: token
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.token }}
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          elif [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+          else
+            echo "Token is missing." >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout github-merge-lock
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: papix/github-merge-lock
+          path: .github-merge-lock-action
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: .github-merge-lock-action/pnpm-lock.yaml
+
+      - name: Install github-merge-lock dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: .github-merge-lock-action
+
+      - name: Lock branch
+        if: ${{ inputs.command == 'lock' }}
+        id: lock
+        uses: ./.github-merge-lock-action/actions/github-merge-lock-lock
+        with:
+          github_token: ${{ steps.token.outputs.token }}
+          owner: ${{ inputs.owner }}
+          repo: ${{ inputs.repo }}
+          branch: ${{ inputs.branch }}
+          ruleset_name: ${{ inputs.ruleset_name }}
+
+      - name: Unlock branch
+        if: ${{ inputs.command == 'unlock' }}
+        id: unlock
+        uses: ./.github-merge-lock-action/actions/github-merge-lock-unlock
+        with:
+          github_token: ${{ steps.token.outputs.token }}
+          owner: ${{ inputs.owner }}
+          repo: ${{ inputs.repo }}
+          branch: ${{ inputs.branch }}
+          ruleset_name: ${{ inputs.ruleset_name }}
+
+      - name: Check status
+        if: ${{ inputs.command == 'status' }}
+        id: status
+        uses: ./.github-merge-lock-action/actions/github-merge-lock-status
+        with:
+          github_token: ${{ steps.token.outputs.token }}
+          owner: ${{ inputs.owner }}
+          repo: ${{ inputs.repo }}
+          branch: ${{ inputs.branch }}
+          ruleset_name: ${{ inputs.ruleset_name }}
+
+      - name: Set outputs
+        id: result
+        shell: bash
+        env:
+          COMMAND: ${{ inputs.command }}
+          LOCK_CHANGED: ${{ steps.lock.outputs.changed }}
+          LOCK_RULESET_NAME: ${{ steps.lock.outputs.ruleset_name }}
+          UNLOCK_CHANGED: ${{ steps.unlock.outputs.changed }}
+          UNLOCK_RULESET_NAME: ${{ steps.unlock.outputs.ruleset_name }}
+          STATUS_LOCKED: ${{ steps.status.outputs.locked }}
+          STATUS_RULESET_ID: ${{ steps.status.outputs.ruleset_id }}
+          STATUS_ENFORCEMENT: ${{ steps.status.outputs.enforcement }}
+          STATUS_FOUND: ${{ steps.status.outputs.found }}
+          STATUS_RULESET_NAME: ${{ steps.status.outputs.ruleset_name }}
+        run: |
+          if [ "$COMMAND" = "status" ]; then
+            echo "locked=$STATUS_LOCKED" >> "$GITHUB_OUTPUT"
+            echo "ruleset_id=$STATUS_RULESET_ID" >> "$GITHUB_OUTPUT"
+            echo "enforcement=$STATUS_ENFORCEMENT" >> "$GITHUB_OUTPUT"
+            echo "found=$STATUS_FOUND" >> "$GITHUB_OUTPUT"
+            echo "ruleset_name=$STATUS_RULESET_NAME" >> "$GITHUB_OUTPUT"
+          elif [ "$COMMAND" = "lock" ]; then
+            echo "changed=$LOCK_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "ruleset_name=$LOCK_RULESET_NAME" >> "$GITHUB_OUTPUT"
+          elif [ "$COMMAND" = "unlock" ]; then
+            echo "changed=$UNLOCK_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "ruleset_name=$UNLOCK_RULESET_NAME" >> "$GITHUB_OUTPUT"
+          fi
