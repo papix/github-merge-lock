@@ -15,7 +15,7 @@ This monorepo contains:
 ## Prerequisites
 
 - Node.js >= 20
-- pnpm >= 10
+- pnpm >= 9
 - A GitHub token with `admin:repo_hook` scope (for classic PAT) or `Repository administration: Write` permission (for fine-grained PAT or GitHub App)
 - Repository rulesets must be available for the target repository
 
